@@ -27,10 +27,24 @@ describe("redisConnectionOptions", () => {
     });
   });
 
-  it("uses env host, port, and TLS in production", () => {
+  it("does not enable TLS just because NODE_ENV is production", () => {
     const options = redisConnectionOptions(
       stubConfig({
         NODE_ENV: "production",
+        REDIS_HOST: "redis.internal",
+        REDIS_PORT: 6379,
+        REDIS_PASSWORD: "secret",
+      }),
+    );
+
+    expect(options.host).toBe("redis.internal");
+    expect(options.tls).toBeUndefined();
+  });
+
+  it("enables TLS only when REDIS_TLS is true", () => {
+    const options = redisConnectionOptions(
+      stubConfig({
+        REDIS_TLS: "true",
         REDIS_HOST: "redis.internal",
         REDIS_PORT: 6380,
         REDIS_USERNAME: "app",
@@ -38,10 +52,22 @@ describe("redisConnectionOptions", () => {
       }),
     );
 
-    expect(options.host).toBe("redis.internal");
     expect(options.port).toBe(6380);
     expect(options.username).toBe("app");
-    expect(options.password).toBe("secret");
     expect(options.tls).toEqual({});
+  });
+
+  it("omits empty username so ioredis does not send ACL AUTH", () => {
+    const options = redisConnectionOptions(
+      stubConfig({
+        REDIS_USERNAME: "",
+        REDIS_PASSWORD: "token",
+        REDIS_TLS: "false",
+      }),
+    );
+
+    expect(options.username).toBeUndefined();
+    expect(options.password).toBe("token");
+    expect(options.tls).toBeUndefined();
   });
 });
