@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Fix:** Signup OTP cooldown uses `HttpStatus.TOO_MANY_REQUESTS` (Nest 10 has no `TooManyRequestsException`), dashboard chat identity mocks include `emailVerifiedAt`, and `nest build` excludes spec files. Covered by `signup.service.spec.ts`.
+
 - **Feat:** Signup sends a 6-digit email OTP through Resend. The account is unverified until `POST /auth/verify-email`. Covered by `otp.spec.ts`, `resend-mailer.spec.ts`, and `signup.service.spec.ts`.
 
 - **Fix:** Creating a business uses a unique slug, wraps owner membership and the default shop in a transaction, and returns locations. Covered by `business-slug.spec.ts` and `create-business.util.spec.ts`.

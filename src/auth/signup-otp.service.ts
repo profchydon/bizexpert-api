@@ -1,10 +1,11 @@
 import {
+  HttpException,
+  HttpStatus,
   Injectable,
   Logger,
   OnModuleDestroy,
   OnModuleInit,
   ServiceUnavailableException,
-  TooManyRequestsException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import Redis from "ioredis";
@@ -49,7 +50,10 @@ export class SignupOtpService implements OnModuleInit, OnModuleDestroy {
       "NX",
     );
     if (reserved !== "OK") {
-      throw new TooManyRequestsException("Wait before requesting another code");
+      throw new HttpException(
+        "Wait before requesting another code",
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
     const secret = this.config.getOrThrow<string>("JWT_SECRET");
     const code = generateSignupOtp();

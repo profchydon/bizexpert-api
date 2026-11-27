@@ -7,6 +7,7 @@ const user = {
   phone: null,
   passwordHash: "x",
   isActive: true,
+  emailVerifiedAt: null,
   createdAt: new Date(),
   updatedAt: new Date(),
 };

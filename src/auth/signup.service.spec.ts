@@ -16,8 +16,11 @@ describe("signup email OTP wiring", () => {
     expect(signup).toContain("resendOtp");
     expect(otp).toContain("sendSignupOtpEmail");
     expect(otp).toContain("RESEND_API_KEY");
+    expect(otp).toContain("HttpStatus.TOO_MANY_REQUESTS");
+    expect(otp).not.toContain("TooManyRequestsException");
     expect(controller).toContain("verify-email");
     expect(controller).toContain("resend-otp");
     expect(source("auth.service.ts")).toContain("emailVerifiedAt");
+    expect(source("../../tsconfig.build.json")).toContain("**/*spec.ts");
   });
 });
