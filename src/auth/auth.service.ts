@@ -3,15 +3,14 @@ import {
   Injectable,
   NotFoundException,
   UnauthorizedException,
-} from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcrypt';
-import { Business, User } from '@prisma/client';
+} from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import * as bcrypt from "bcrypt";
+import { Business, User } from "@prisma/client";
 
-import { RegisterDto } from './dto/register.dto';
-import { UpdateProfileDto } from './dto/update-profile.dto';
-import { JwtPayload } from './strategies/jwt.strategy';
-import { PrismaService } from '../prisma/prisma.service';
+import { UpdateProfileDto } from "./dto/update-profile.dto";
+import { JwtPayload } from "./strategies/jwt.strategy";
+import { PrismaService } from "../prisma/prisma.service";
 
 const BCRYPT_ROUNDS = 12;
 
@@ -22,35 +21,13 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async register(dto: RegisterDto): Promise<{ user: User; token: string }> {
-    const existing = await this.prisma.user.findUnique({
-      where: { email: dto.email.toLowerCase().trim() },
-    });
-    if (existing) {
-      throw new ConflictException('A user with this email already exists');
-    }
-
-    const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
-
-    const user = await this.prisma.user.create({
-      data: {
-        name: dto.name.trim(),
-        email: dto.email.toLowerCase().trim(),
-        passwordHash,
-        phone: dto.phone?.trim() ?? null,
-      },
-    });
-
-    return this.buildAuthResponse(user);
-  }
-
   async login(
     email: string,
     password: string,
   ): Promise<{ user: User; token: string; businesses: Business[] }> {
     const user = await this.validateUser(email, password);
     if (!user) {
-      throw new UnauthorizedException('Invalid email or password');
+      throw new UnauthorizedException("Invalid email or password");
     }
 
     return this.buildAuthResponse(user);
@@ -61,6 +38,9 @@ export class AuthService {
     token: string;
     businesses: Business[];
   }> {
+    if (!user.emailVerifiedAt) {
+      throw new UnauthorizedException("Verify your email before signing in");
+    }
     return this.buildAuthResponse(user);
   }
 
@@ -108,7 +88,7 @@ export class AuthService {
   async getProfile(userId: string): Promise<User> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException("User not found");
     }
     return user;
   }
@@ -121,7 +101,7 @@ export class AuthService {
         where: { email: dto.email.toLowerCase().trim() },
       });
       if (conflict) {
-        throw new ConflictException('Email is already in use');
+        throw new ConflictException("Email is already in use");
       }
     }
 
@@ -129,7 +109,9 @@ export class AuthService {
       where: { id: userId },
       data: {
         ...(dto.name !== undefined && { name: dto.name.trim() }),
-        ...(dto.email !== undefined && { email: dto.email.toLowerCase().trim() }),
+        ...(dto.email !== undefined && {
+          email: dto.email.toLowerCase().trim(),
+        }),
         ...(dto.phone !== undefined && { phone: dto.phone?.trim() ?? null }),
       },
     });
@@ -144,7 +126,7 @@ export class AuthService {
 
     const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
     if (!isMatch) {
-      throw new UnauthorizedException('Current password is incorrect');
+      throw new UnauthorizedException("Current password is incorrect");
     }
 
     const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);

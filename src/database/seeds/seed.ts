@@ -34,6 +34,7 @@ async function main() {
       email: DEMO_EMAIL,
       passwordHash: await bcrypt.hash(DEMO_PASSWORD, BCRYPT_ROUNDS),
       phone: "+2348012345678",
+      emailVerifiedAt: new Date(),
     },
   });
   const business = await prisma.business.create({

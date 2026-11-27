@@ -10,73 +10,95 @@ import {
   Request,
   UseGuards,
   UseInterceptors,
-} from '@nestjs/common';
+} from "@nestjs/common";
 import {
   ApiBearerAuth,
   ApiOperation,
   ApiResponse,
   ApiTags,
-} from '@nestjs/swagger';
-import { AuthGuard } from '@nestjs/passport';
+} from "@nestjs/swagger";
+import { AuthGuard } from "@nestjs/passport";
 
-import { AuthService } from './auth.service';
-import { RegisterDto } from './dto/register.dto';
-import { LoginDto } from './dto/login.dto';
-import { ChangePasswordDto } from './dto/change-password.dto';
-import { UpdateProfileDto } from './dto/update-profile.dto';
-import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { JwtPayload } from './strategies/jwt.strategy';
+import { AuthService } from "./auth.service";
+import { SignupService } from "./signup.service";
+import { RegisterDto } from "./dto/register.dto";
+import { VerifyEmailDto } from "./dto/verify-email.dto";
+import { ResendOtpDto } from "./dto/resend-otp.dto";
+import { LoginDto } from "./dto/login.dto";
+import { ChangePasswordDto } from "./dto/change-password.dto";
+import { UpdateProfileDto } from "./dto/update-profile.dto";
+import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
+import { CurrentUser } from "../common/decorators/current-user.decorator";
 
-@ApiTags('Auth')
+@ApiTags("Auth")
 @UseInterceptors(ClassSerializerInterceptor)
-@Controller('auth')
+@Controller("auth")
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly signupService: SignupService,
+  ) {}
 
   // ─── Register ───────────────────────────────────────────────────────────────
 
-  @Post('register')
+  @Post("register")
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Register a new user account' })
-  @ApiResponse({ status: 201, description: 'User registered successfully' })
-  @ApiResponse({ status: 409, description: 'Email already registered' })
+  @ApiOperation({ summary: "Register a new user account" })
+  @ApiResponse({ status: 201, description: "User registered successfully" })
+  @ApiResponse({ status: 409, description: "Email already registered" })
   register(@Body() dto: RegisterDto) {
-    return this.authService.register(dto);
+    return this.signupService.register(dto);
+  }
+
+  @Post("verify-email")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Verify signup email with OTP" })
+  verifyEmail(@Body() dto: VerifyEmailDto) {
+    return this.signupService.verifyEmail(dto.email, dto.otp);
+  }
+
+  @Post("resend-otp")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Resend signup email OTP" })
+  resendOtp(@Body() dto: ResendOtpDto) {
+    return this.signupService.resendOtp(dto.email);
   }
 
   // ─── Login ──────────────────────────────────────────────────────────────────
 
-  @Post('login')
+  @Post("login")
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AuthGuard('local'))
-  @ApiOperation({ summary: 'Login with email and password' })
-  @ApiResponse({ status: 200, description: 'Login successful' })
-  @ApiResponse({ status: 401, description: 'Invalid credentials' })
-  login(@Request() req: Express.Request & { user: any }, @Body() _dto: LoginDto) {
+  @UseGuards(AuthGuard("local"))
+  @ApiOperation({ summary: "Login with email and password" })
+  @ApiResponse({ status: 200, description: "Login successful" })
+  @ApiResponse({ status: 401, description: "Invalid credentials" })
+  login(
+    @Request() req: Express.Request & { user: any },
+    @Body() _dto: LoginDto,
+  ) {
     // LocalStrategy has already validated credentials and attached the user
     return this.authService.loginWithUser(req.user);
   }
 
   // ─── Profile ────────────────────────────────────────────────────────────────
 
-  @Get('profile')
+  @Get("profile")
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Get the authenticated user profile' })
-  @ApiResponse({ status: 200, description: 'Profile returned' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  getProfile(@CurrentUser('sub') userId: string) {
+  @ApiBearerAuth("JWT-auth")
+  @ApiOperation({ summary: "Get the authenticated user profile" })
+  @ApiResponse({ status: 200, description: "Profile returned" })
+  @ApiResponse({ status: 401, description: "Unauthorized" })
+  getProfile(@CurrentUser("sub") userId: string) {
     return this.authService.getProfile(userId);
   }
 
-  @Put('profile')
+  @Put("profile")
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Update the authenticated user profile' })
-  @ApiResponse({ status: 200, description: 'Profile updated' })
+  @ApiBearerAuth("JWT-auth")
+  @ApiOperation({ summary: "Update the authenticated user profile" })
+  @ApiResponse({ status: 200, description: "Profile updated" })
   updateProfile(
-    @CurrentUser('sub') userId: string,
+    @CurrentUser("sub") userId: string,
     @Body() dto: UpdateProfileDto,
   ) {
     return this.authService.updateProfile(userId, dto);
@@ -84,15 +106,15 @@ export class AuthController {
 
   // ─── Password ────────────────────────────────────────────────────────────────
 
-  @Put('change-password')
+  @Put("change-password")
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Change the authenticated user password' })
-  @ApiResponse({ status: 204, description: 'Password changed' })
-  @ApiResponse({ status: 401, description: 'Current password incorrect' })
+  @ApiBearerAuth("JWT-auth")
+  @ApiOperation({ summary: "Change the authenticated user password" })
+  @ApiResponse({ status: 204, description: "Password changed" })
+  @ApiResponse({ status: 401, description: "Current password incorrect" })
   changePassword(
-    @CurrentUser('sub') userId: string,
+    @CurrentUser("sub") userId: string,
     @Body() dto: ChangePasswordDto,
   ) {
     return this.authService.changePassword(

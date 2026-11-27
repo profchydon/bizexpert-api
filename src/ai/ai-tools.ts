@@ -1,6 +1,6 @@
-import OpenAI from "openai";
+import type { ChatTool } from "./openrouter.types";
 
-export const AI_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
+export const AI_TOOLS: ChatTool[] = [
   {
     type: "function",
     function: {

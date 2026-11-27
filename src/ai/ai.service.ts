@@ -1,6 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import OpenAI from "openai";
 import { Business, User, WhatsappIdentity } from "@prisma/client";
 import { AnalyticsService } from "../analytics/analytics.service";
 import { InventoryService } from "../inventory/inventory.service";
@@ -9,6 +8,12 @@ import { PrismaService } from "../prisma/prisma.service";
 import { executeAiTool } from "./ai-execute";
 import { runAiFallback } from "./ai-fallback";
 import { sanitizeChatHistory, type ChatTurn } from "./ai-history";
+import {
+  OPENROUTER_DEFAULT_MODEL,
+  resolveOpenRouterConfig,
+} from "./openrouter.client";
+import { runOpenRouterToolLoop } from "./openrouter.loop";
+import type { ChatMessage, OpenRouterConfig } from "./openrouter.types";
 import { stripEmojis } from "./strip-emojis";
 import { AI_TOOLS } from "./ai-tools";
 
@@ -24,7 +29,7 @@ type ChatInput = {
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
-  private openai: OpenAI | null = null;
+  private config: OpenRouterConfig | null = null;
 
   constructor(
     private readonly configService: ConfigService,
@@ -33,12 +38,13 @@ export class AiService {
     private readonly inventoryService: InventoryService,
     private readonly prisma: PrismaService,
   ) {
-    const apiKey = this.configService.get<string>("OPENAI_API_KEY");
-    if (apiKey) {
-      this.openai = new OpenAI({ apiKey });
-    } else {
+    this.config = resolveOpenRouterConfig(
+      this.configService.get<string>("OPENROUTER_API_KEY"),
+      this.configService.get<string>("APP_URL"),
+    );
+    if (!this.config) {
       this.logger.warn(
-        "OPENAI_API_KEY not set — AI features will use fallback mode",
+        "OPENROUTER_API_KEY not set — AI features will use fallback mode",
       );
     }
   }
@@ -65,7 +71,7 @@ export class AiService {
       business: input.business,
       identity: input.identity,
     };
-    if (!this.openai) {
+    if (!this.config) {
       return stripEmojis(
         await runAiFallback(input.messageText, ctx, this.analyticsService),
       );
@@ -91,55 +97,29 @@ export class AiService {
     ].join("\n");
 
     const history = sanitizeChatHistory(input.history);
-    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+    const messages: ChatMessage[] = [
       { role: "system", content: systemPrompt },
       ...history.map((turn) => ({ role: turn.role, content: turn.content })),
       { role: "user", content: input.messageText },
     ];
-    const model = this.configService.get<string>("OPENAI_MODEL", "gpt-4o");
-    let finalResponse = "";
+    const model = this.configService.get<string>(
+      "OPENROUTER_MODEL",
+      OPENROUTER_DEFAULT_MODEL,
+    );
     const deps = {
       analyticsService: this.analyticsService,
       pendingActionsService: this.pendingActionsService,
       inventoryService: this.inventoryService,
       logger: this.logger,
     };
+    const finalResponse = await runOpenRouterToolLoop({
+      config: this.config,
+      model,
+      messages,
+      tools: AI_TOOLS,
+      execute: (name, args) => executeAiTool(name, args, ctx, deps),
+    });
 
-    for (let i = 0; i < 5; i++) {
-      const completion = await this.openai.chat.completions.create({
-        model,
-        messages,
-        tools: AI_TOOLS,
-        tool_choice: "auto",
-        max_tokens: 1024,
-      });
-      const choice = completion.choices[0];
-      if (
-        choice.finish_reason === "stop" ||
-        !choice.message.tool_calls?.length
-      ) {
-        finalResponse = choice.message.content ?? "Done.";
-        break;
-      }
-      messages.push(choice.message);
-      for (const toolCall of choice.message.tool_calls) {
-        const args = JSON.parse(toolCall.function.arguments);
-        const result = await executeAiTool(
-          toolCall.function.name,
-          args,
-          ctx,
-          deps,
-        );
-        messages.push({
-          role: "tool",
-          tool_call_id: toolCall.id,
-          content: result,
-        });
-      }
-    }
-
-    return stripEmojis(
-      finalResponse || "Sorry, I could not process your request.",
-    );
+    return stripEmojis(finalResponse);
   }
 }

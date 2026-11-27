@@ -117,10 +117,11 @@ model User {
   name         String   @db.VarChar(255)
   email        String   @unique @db.VarChar(255)
   passwordHash String   @db.VarChar(255)
-  phone        String?  @db.VarChar(20)
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
+  phone           String?   @db.VarChar(20)
+  isActive        Boolean   @default(true)
+  emailVerifiedAt DateTime? @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(6)
 
   businessMemberships BusinessMembership[]
   locationMemberships LocationMembership[]

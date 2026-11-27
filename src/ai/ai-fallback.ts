@@ -66,6 +66,6 @@ export async function runAiFallback(
     `- "Which products need restocking?"\n` +
     `- "What is my inventory value?"\n` +
     `- Record a sale, receive stock, or transfer stock (I'll preview first).\n\n` +
-    `For full conversation support, set OPENAI_API_KEY.`
+    `For full conversation support, set OPENROUTER_API_KEY.`
   );
 }

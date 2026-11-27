@@ -1,11 +1,11 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { Business, BusinessMembership } from "@prisma/client";
 
-import { BusinessRole, LocationType } from "../common/enums";
 import { CreateBusinessDto } from "./dto/create-business.dto";
 import { UpdateBusinessDto } from "./dto/update-business.dto";
 import { AddMemberDto } from "./dto/add-member.dto";
 import { UpdateMemberRoleDto } from "./dto/update-member-role.dto";
+import { createBusinessWithOwner } from "./create-business.util";
 import { PrismaService } from "../prisma/prisma.service";
 import {
   addBusinessMember,
@@ -20,42 +20,8 @@ import {
 export class BusinessesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(userId: string, dto: CreateBusinessDto): Promise<Business> {
-    const slug = dto.name
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "");
-
-    const business = await this.prisma.business.create({
-      data: {
-        name: dto.name.trim(),
-        slug,
-        description: dto.description?.trim() ?? null,
-        phone: dto.phone?.trim() ?? null,
-        email: dto.email?.toLowerCase().trim() ?? null,
-        address: dto.address?.trim() ?? null,
-      },
-    });
-
-    await this.prisma.businessMembership.create({
-      data: {
-        businessId: business.id,
-        userId,
-        role: BusinessRole.OWNER,
-      },
-    });
-
-    await this.prisma.location.create({
-      data: {
-        businessId: business.id,
-        name: "Main Location",
-        type: LocationType.SHOP,
-        isDefault: true,
-      },
-    });
-
-    return business;
+  async create(userId: string, dto: CreateBusinessDto) {
+    return createBusinessWithOwner(this.prisma, userId, dto);
   }
 
   async findAllByUser(userId: string): Promise<Business[]> {
